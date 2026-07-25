@@ -271,12 +271,13 @@ export class HttpClient {
     const {
       method = 'GET',
       headers = {},
-      body,
+      body: initialBody,
       params,
       timeoutMs = this.timeoutMs,
       retry,
       signal,
     } = options;
+    let body = initialBody;
 
     const isAbsolute = path.startsWith('http://') || path.startsWith('https://');
 
@@ -326,6 +327,7 @@ export class HttpClient {
         });
         // Merge any header/body mutations from middleware
         Object.assign(requestHeaders, middlewarePayload.headers);
+        body = middlewarePayload.body as TBody | undefined;
       } catch (mwError) {
         const error = mwError instanceof Error ? mwError : new Error(String(mwError));
         await runErrorPipeline(this.middleware, {
@@ -436,8 +438,9 @@ export class HttpClient {
                 durationMs,
               },
             });
-          } catch {
+          } catch (pipelineErr) {
             // Pipeline error already propagated through middleware; re-throw first error
+            throw pipelineErr;
           }
         }
 
