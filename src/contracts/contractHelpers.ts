@@ -534,7 +534,7 @@ export const validateAccessRequirement = async (
 
 export async function resolveRootOnChain(
   contractAddress: string,
-  provider: ethers.providers.Provider
+  provider: ethers.Provider
 ): Promise<WhitelistRoot> {
   const contract = new ethers.Contract(
     contractAddress,
@@ -552,8 +552,9 @@ export async function resolveRootOnChain(
       publishedAt: publishedAt.toNumber(),
       isActive: isActive as boolean,
     };
-  } catch (error) {
-    throw new GuildPassNetworkError(`Failed to resolve root from contract: ${error.message}`, GuildPassErrorCode.HTTP_ERROR, error);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    throw new GuildPassNetworkError(`Failed to resolve root from contract: ${msg}`, GuildPassErrorCode.HTTP_ERROR, error);
   }
 }
 
@@ -581,7 +582,7 @@ export async function resolveCurrentRoot(
   options?: {
     rootSource?: 'onchain' | 'api';
     contractAddress?: string;
-    provider?: ethers.providers.Provider;
+    provider?: ethers.Provider;
     apiBaseUrl?: string;
   }
 ): Promise<WhitelistRoot> {

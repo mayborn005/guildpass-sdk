@@ -217,9 +217,9 @@ export class HttpClient {
   private readonly timeoutMs: number;
   private readonly globalRetry?: RetryConfig;
   private readonly hooks?: HttpHooks;
-  private readonly middleware: Middleware[];
+  private readonly middleware!: Middleware[];
   private readonly fetchTransport?: FetchLike;
-  private readonly transport: HttpTransport;
+  private readonly transport!: HttpTransport;
   private readonly metadata?: ClientMetadata;
   private readonly tokenBucket?: TokenBucket;
 
@@ -339,7 +339,7 @@ export class HttpClient {
     }
     // ────────────────────────────────────────────────────────────────────
 
-    if (signal?.aborted) throw new GuildPassNetworkError('Request cancelled by caller', GuildPassErrorCode.REQUEST_CANCELLED);
+    if (signal?.aborted) throw new GuildPassCancellationError();
 
     const startTime = Date.now();
     const hookPayload: RequestHookPayload = { method, path, headers: redactHeaders(requestHeaders) };
