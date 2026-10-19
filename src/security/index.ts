@@ -1,1 +1,1 @@
-export * from './verify-response';
+export * from "./secretRedaction.js";

@@ -1,321 +1,1039 @@
-<div align="center">
-  <a href="./README.md">
-    <img src="./logo/Guidlpass SDK Logo.png" alt="GuildPass Logo" width="120" />
-  </a>
-  <h1>GuildPass SDK</h1>
-  <p><strong>The official TypeScript SDK for the GuildPass protocol.</strong></p>
+<p align="center">
+  <img src="./logo/Guidlpass%20SDK%20Logo.png" alt="GuildPass SDK Logo" width="220" />
+</p>
 
-  <p>
-    <a href="https://www.npmjs.com/package/@guildpass/sdk"><img src="https://img.shields.io/npm/v/@guildpass/sdk?style=flat-square&color=6366f1" alt="npm version" /></a>
-    <a href="https://github.com/Adamantine-Guild/guildpass-sdk/actions"><img src="https://img.shields.io/github/actions/workflow/status/Adamantine-Guild/guildpass-sdk/test.yml?branch=main&style=flat-square" alt="build status" /></a>
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="license" /></a>
-    <a href="https://typescriptlang.org"><img src="https://img.shields.io/badge/typescript-%23007acc.svg?style=flat-square&logo=typescript&logoColor=white" alt="typescript" /></a>
-  </p>
+<h1 align="center">GuildPass SDK</h1>
 
-  <p align="center">
-    <a href="#-features">Features</a> •
-    <a href="#-installation">Installation</a> •
-    <a href="#-quick-start">Quick Start</a> •
-    <a href="#-documentation">Documentation</a> •
-    <a href="#-development">Development</a> •
-    <a href="#-contributing">Contributing</a>
-  </p>
-</div>
+<p align="center">
+  <strong>The official TypeScript SDK for building applications on top of GuildPass.</strong>
+</p>
+
+<p align="center">
+  A developer-friendly interface for connecting applications, communities and services to GuildPass.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Node.js-24+-339933?logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/Stellar-Ready-7C3AED" alt="Stellar" />
+  <img src="https://img.shields.io/badge/Package-@guildpass%2Fsdk-6F42C1" alt="@guildpass/sdk" />
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License" />
+</p>
 
 ---
 
-> **Part of the [Adamantine-Guild](https://github.com/Adamantine-Guild) project** — a Web3 membership and token-gated community platform for the open-source ecosystem.
+## What is GuildPass SDK?
 
-## 🛡️ About GuildPass
+GuildPass SDK is the TypeScript library applications use to interact with the wider GuildPass ecosystem.
 
-GuildPass is a Web3 membership and access-control protocol designed for token-gated communities, guilds, dashboards, and ecosystem integrations. This SDK provides a production-grade interface for developers to build secure, gated experiences in both **Node.js** and **Browser** environments.
+GuildPass itself is designed as infrastructure for programmable communities, including areas such as:
 
-## ✨ Features
+- digital membership;
+- access control;
+- community roles;
+- governance;
+- contribution tracking;
+- rewards;
+- Stellar-based identity and membership infrastructure.
 
-- **🛡️ Access Control**: Check wallet access for resources and roles with ease.
-- **💎 Membership Management**: Verify active membership status and user roles.
-- **🏗️ Guild Configuration**: Fetch metadata and custom configurations for any guild.
-- **⚡ Pluggable Caching**: Built-in TTL cache with optional custom adapter support (Redis, etc.).
-- **🧩 Modular Architecture**: Clean service-based design for minimal bundle size.
-- **💪 Type Safe**: First-class TypeScript support with comprehensive definitions.
-- **🌐 Universal**: Seamless integration with Node.js (18+), modern browsers (JSDOM verified), and Edge runtimes (V8/Cloudflare Workers verified). Fully tested in continuous integration across all environments.
+The SDK sits between an application and GuildPass Core.
 
-## 📦 Installation
+Instead of every application manually constructing HTTP requests, validating responses, handling errors and understanding every internal GuildPass service, the SDK provides a cleaner developer-facing interface.
 
-```bash
-# Using pnpm (recommended)
-pnpm add @guildpass/sdk
+Conceptually:
 
-# Using npm
-npm install @guildpass/sdk
-
-# Using yarn
-yarn add @guildpass/sdk
+```text
+Application
+    │
+    │ uses
+    ▼
+GuildPass SDK
+    │
+    │ communicates with
+    ▼
+GuildPass Core
+    │
+    ├── Membership
+    ├── Access Control
+    ├── Governance
+    ├── Contributions
+    ├── Rewards
+    └── Stellar / Soroban
 ```
 
-## 🚀 Quick Start
+---
 
-Initialize the client and check access in seconds.
+# For Non-Technical Readers
 
-```typescript
-import { GuildPassClient } from '@guildpass/sdk';
+GuildPass SDK can be thought of as a **bridge between GuildPass and applications**.
 
-// 1. Initialize the client
+Imagine a community application needs to answer:
+
+> Is this person a member?
+
+or:
+
+> Does this member have permission to access this feature?
+
+or eventually:
+
+> What role does this member have?
+
+> Is this membership associated with a valid Stellar identity?
+
+> What GuildPass community does this user belong to?
+
+The application should not need to understand all of the infrastructure behind those questions.
+
+The SDK is intended to give developers straightforward functions that handle those interactions for them.
+
+For example, a developer should eventually be able to write code conceptually similar to:
+
+```ts
+const membership = await guildpass.memberships.get({
+  communityId: "community_123",
+  memberId: "member_456",
+});
+```
+
+instead of manually constructing network requests and interpreting internal GuildPass responses.
+
+---
+
+# GuildPass SDK V2
+
+The current repository contains **GuildPass SDK V2**, a clean rebuild of the original SDK.
+
+The previous version had accumulated a broad set of functionality including:
+
+- EVM providers;
+- ethers adapters;
+- viem adapters;
+- SIWE authentication;
+- EIP-712 utilities;
+- contract providers;
+- multicall infrastructure;
+- caching;
+- Merkle utilities;
+- multiple transports;
+- multi-chain abstractions.
+
+GuildPass is now moving toward a cleaner **Stellar-first architecture**, so V2 intentionally starts with a much smaller foundation.
+
+The goal is to grow the SDK around actual GuildPass requirements rather than preserving unnecessary complexity from the old implementation.
+
+The previous SDK remains available through Git history and the preserved pre-rebuild branch and tag.
+
+---
+
+# Current Status
+
+> GuildPass SDK V2 is under active development.
+
+The current baseline includes:
+
+- a TypeScript SDK package;
+- strict TypeScript configuration;
+- ESM output;
+- declaration generation;
+- source maps;
+- a minimal `GuildPassClient`;
+- shared SDK types;
+- Vitest test infrastructure;
+- tsup packaging;
+- pnpm dependency management;
+- CI-ready build commands.
+
+The SDK deliberately does **not** yet contain every capability described in the long-term GuildPass architecture.
+
+Features are being added incrementally through scoped contributor issues.
+
+---
+
+# Repository Structure
+
+```text
+guildpass-sdk/
+│
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   ├── workflows/
+│   └── PULL_REQUEST_TEMPLATE.md
+│
+├── logo/
+│   └── Guidlpass SDK Logo.png
+│
+├── src/
+│   ├── client/
+│   │   └── SDK client implementation
+│   │
+│   ├── config/
+│   │   └── SDK configuration
+│   │
+│   ├── errors/
+│   │   └── SDK error contracts
+│   │
+│   ├── stellar/
+│   │   └── Stellar-specific functionality
+│   │
+│   ├── testing/
+│   │   └── Testing utilities
+│   │
+│   ├── transport/
+│   │   └── Communication infrastructure
+│   │
+│   ├── types/
+│   │   └── Public TypeScript types
+│   │
+│   └── index.ts
+│
+├── tests/
+│   └── SDK unit tests
+│
+├── package.json
+├── pnpm-lock.yaml
+├── tsconfig.json
+├── tsup.config.ts
+├── vitest.config.ts
+├── LICENSE
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md
+└── README.md
+```
+
+Some directories may currently contain only the initial V2 foundation and will expand as new functionality is implemented.
+
+---
+
+# Technology Stack
+
+GuildPass SDK V2 uses a deliberately small toolchain.
+
+| Technology | Purpose                             |
+| ---------- | ----------------------------------- |
+| TypeScript | SDK implementation and public types |
+| Node.js    | Development and build runtime       |
+| pnpm       | Dependency management               |
+| tsup       | SDK bundling                        |
+| Vitest     | Unit testing                        |
+| ESLint     | Static code analysis                |
+| Prettier   | Code formatting                     |
+
+The SDK currently targets:
+
+```text
+Node.js >= 24
+```
+
+and uses:
+
+```text
+pnpm 11.16.0
+```
+
+---
+
+# Package Design
+
+GuildPass SDK is designed to be consumed as:
+
+```ts
+import {
+  GuildPassClient,
+  isStellarAccountId,
+  parseStellarAccountId,
+  isGuildPassError,
+  HttpError,
+  type AccessDecision,
+} from "@guildpass/sdk";
+```
+
+### Client Initialization
+
+Initialize `GuildPassClient` with your GuildPass Core API endpoint:
+
+```ts
 const client = new GuildPassClient({
-  apiUrl: 'https://api.guildpass.xyz',
-  chainId: 8453, // Base Mainnet
+  baseUrl: "https://api.testnet.guildpass.io",
+  timeoutMs: 10_000,
+  headers: {
+    "x-api-key": "your-api-key-here",
+  },
 });
+```
 
-// 2. Perform an access check
-const result = await client.access.checkAccess({
-  walletAddress: '0x1234...5678',
-  guildId: 'prime-guild',
-  resourceId: 'premium-docs',
-});
+### Stellar Account Validation
 
-if (result.hasAccess) {
-  console.log('✅ Access Granted');
-} else {
-  console.log(`❌ Denied: ${result.reason}`);
+Lightweight, zero-dependency helpers validate Stellar StrKey public keys:
+
+```ts
+const account = "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7";
+
+if (isStellarAccountId(account)) {
+  const validatedAccount = parseStellarAccountId(account);
+  console.log("Valid Stellar account:", validatedAccount);
 }
 ```
 
-## 🛠️ Service Modules
+### Evaluating Community Access
 
-The SDK is organized into focused service modules accessible via the main client:
+Use `client.access.check` to evaluate role and access permissions against GuildPass Core:
 
-| Module              | Purpose                                                        |
-| :------------------ | :------------------------------------------------------------- |
-| `client.access`     | Handle resource gating and role-based access checks.           |
-| `client.membership` | Query wallet membership status and join dates.                 |
-| `client.roles`      | Retrieve available roles and user assignments.                 |
-| `client.guilds`     | Fetch guild metadata, themes, and social links.                |
-| `client.contracts`  | Resolve chain config and read on-chain GuildPass contract data. |
+```ts
+try {
+  const decision: AccessDecision = await client.access.check({
+    guildId: "guild-builders",
+    account: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7",
+    resource: "governance-portal",
+    action: "vote",
+  });
 
-## ⚙️ Configuration
-
-```typescript
-const client = new GuildPassClient({
-  apiUrl: string;           // Base API endpoint
-  chainId?: number;         // Default chain (default: 1)
-  apiKey?: string;          // Optional API key for restricted access (server-side only — see Security)
-  validateResponses?: boolean; // Validate response shapes at runtime (default: false)
-  cache?: CacheAdapter;         // Optional cache adapter (see Caching section below)
-  cacheTtl?: number;            // Default TTL in ms for all cached entries
-  rpcUrl?: string;          // Optional RPC provider for on-chain checks
-  contractAddress?: string; // Optional default contract address
-  chains?: Record<number, { // Optional per-chain RPC/contract overrides
-    rpcUrl?: string;
-    contractAddress?: string;
-  }>;
-});
+  if (decision.allowed) {
+    console.log("Access granted!");
+  } else {
+    console.log("Access denied:", decision.reason);
+  }
+} catch (error: unknown) {
+  if (error instanceof HttpError) {
+    console.error(`API returned error status ${error.status}: ${error.message}`);
+  } else if (isGuildPassError(error)) {
+    console.error(`GuildPass SDK error [${error.code}]: ${error.message}`);
+  } else {
+    console.error("Unexpected error:", error);
+  }
+}
 ```
 
-## ⚡ Caching
-
-Passing a `cache` adapter enables transparent memoization of all read operations (access checks, membership, roles, guild metadata). The public API of every service method is **unchanged** — caching is completely invisible to callers.
-
-Concurrent calls for the same not-yet-cached key are single-flighted: only one network request is made, and every caller — with or without a `cache` adapter configured — shares that request's resolved (or rejected) result. Once the in-flight request settles, the de-duplication entry is cleared, so a failed request never blocks subsequent legitimate retries.
-
-### Built-in: `InMemoryCacheAdapter`
-
-```typescript
-import { GuildPassClient, InMemoryCacheAdapter } from '@guildpass/sdk';
-
-const client = new GuildPassClient({
-  apiUrl: 'https://api.guildpass.xyz',
-  cache: new InMemoryCacheAdapter(),
-  cacheTtl: 60_000, // entries expire after 60 s
-});
-
-// First call hits the network; subsequent calls with the same arguments return
-// the cached response instantly.
-const guild = await client.guilds.getGuild({ guildId: 'prime-guild' });
-```
-
-### Custom adapter (e.g. Redis)
-
-Implement the `CacheAdapter` interface and pass it in. A minimal example:
-
-```typescript
-import { CacheAdapter } from '@guildpass/sdk';
-import { createClient } from 'redis';
-
-const redis = createClient();
-await redis.connect();
-
-const redisAdapter: CacheAdapter = {
-  async get<T>(key: string): Promise<T | null> {
-    const raw = await redis.get(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  },
-  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
-    const opts = ttl ? { PX: ttl } : undefined;
-    await redis.set(key, JSON.stringify(value), opts);
-  },
-  async delete(key: string): Promise<void> {
-    await redis.del(key);
-  },
-  async clear(): Promise<void> {
-    await redis.flushDb();
-  },
-};
-```
-
-For production adapters — including TTL semantics, prefix deletion, error isolation, serialisation expectations, and a full Redis example with `deleteByPrefix` — see the [Cache Adapters Guide](./docs/cache-adapters.md).
-
-**Access decisions vs guild metadata:** The global `cacheTtl` applies to all cached reads, but the SDK **caps access-check entries** (`checkAccess`, `checkRoleAccess`, `hasRole`) at five minutes and recommends **≤ 60 seconds** for production gating. Guild metadata can safely use longer TTLs. Omitting `cacheTtl` while enabling `cache` triggers a constructor warning and defaults access entries to 60 seconds. See [Security — Threat Model](./docs/security/threat-model.md#33-cache--cachettl--poisoned-or-stale-access-grants).
-
-### Cache invalidation
-
-```typescript
-// Evict all entries tied to a specific guild (e.g. after an admin change).
-await client.invalidateGuildCache('prime-guild');
-
-// Evict all wallet-scoped entries.
-await client.invalidateWalletCache('0x1234...5678');
-
-// Full wipe.
-await client.clearCache();
-```
-
-### Membership token balances
-
-Configure `rpcUrl` and `contractAddress` to query the configured membership token:
-
-```typescript
-const client = new GuildPassClient({
-  apiUrl: 'https://api.guildpass.xyz',
-  rpcUrl: 'https://mainnet.base.org',
-  contractAddress: '0x0000000000000000000000000000000000000000',
-});
-
-const balance = await client.contracts.getMembershipTokenBalance({
-  walletAddress: '0x1234567890123456789012345678901234567890',
-});
-```
-
-The lookup uses an `eth_call` against `balanceOf(address)` and returns the raw
-token balance as a decimal string.
-
-## 🔒 Security
-
-The SDK runs in **Node.js, browsers, and Edge** — each environment has different trust properties for secrets and backends.
-
-| Concern | Safe pattern |
-|---------|--------------|
-| `apiKey` | Keep on your **backend** only. Browser apps should proxy GuildPass API calls through your server — never embed production keys in client bundles. |
-| `rpcUrl` | Use RPC providers you trust. For high-value gates, use `client.access.checkAccessVerified()` to cross-check API and on-chain state. |
-| `cache` / `cacheTtl` | Use **≤ 60 s** for access decisions; longer TTLs are fine for guild metadata. Call `invalidateGuildCache` / `invalidateWalletCache` after mutations. |
-
-The SDK redacts `apiKey` from `getConfig()` and HTTP hook payloads, omits the key from absolute RPC requests, and emits runtime warnings for risky browser or cache configuration.
-
-Full analysis: [Threat Model](./docs/security/threat-model.md) · [Security Policy](./SECURITY.md)
-
-## 📚 Documentation
-
-For more detailed guides and API references, check out:
-
-- [Threat Model — Configuration & Trust Boundaries](./docs/security/threat-model.md)
-- [Architecture Overview](./docs/architecture.md)
-- [SDK Usage Guide](./docs/sdk-guide.md)
-- [Full API Reference](./docs/api-reference.md)
-- [Integration Guide](./docs/integration-guide.md)
-- [Cache Adapters Guide](./docs/cache-adapters.md)
-
-## 🏗️ Development
-
-```bash
-# Install dependencies
-pnpm install
-
-# Build for production (tsup)
-pnpm build
-
-# Watch mode for development
-pnpm dev
-
-# Run unit tests (watch)
-pnpm test
-
-# Run tests once (CI mode)
-pnpm test:run
-
-# Lint
-pnpm lint
-
-# Format
-pnpm format
-
-# Type checking
-pnpm typecheck
-
-# Generate TypeDoc API docs
-pnpm docs
-
-# Validate package metadata (publint — catches malformed exports, missing files, etc.)
-pnpm validate
-
-# Diff public API against the last release tag (local release prep — not CI)
-pnpm check-api-diff
-
-# Run the same quality gates used by releases
-pnpm release:check
-```
-
-## 🚢 Release process
-
-Releases are automated by the [`Release`](./.github/workflows/release.yml) GitHub Actions workflow. Maintainers can test the workflow safely with **Run workflow** by leaving `dry_run` enabled; tag pushes publish to npm only after all quality gates pass.
-
-### Quality gates
-
-The workflow installs dependencies with `pnpm install --frozen-lockfile` and then runs:
-
-1. `pnpm lint`
-2. `pnpm typecheck`
-3. `pnpm test:run`
-4. `pnpm build`
-5. `pnpm test:smoke`
-6. `pnpm docs`
-7. `pnpm validate`
-8. `pnpm pack --pack-destination ./artifacts`
-
-### Versioning and changelog
-
-Release tags must use the package version prefixed with `v`, for example `v0.1.0` for package version `0.1.0`. Before creating a tag, update `package.json` and add a matching `## [x.y.z]` entry to `CHANGELOG.md`; the workflow fails if the tag and package version do not match or if the changelog entry is missing.
-
-Maintainers can run `pnpm check-api-diff` locally before tagging to compare the regenerated `api-report/` against the previous release and confirm the correct semver bump. This check is intentionally **not** wired into the release workflow.
-
-### Publishing and provenance
-
-Production publishing runs only for pushed `v*.*.*` tags. The workflow uses `npm publish --provenance --access public`, requires the `id-token: write` permission for npm provenance, and reads the npm automation token from the `NPM_TOKEN` repository or environment secret. Do not hard-code maintainer tokens in the repository. The workflow is assigned to the `npm` GitHub environment so maintainers can add environment protection rules before publishing.
-
-## 🗺️ Roadmap
-
-- [ ] **On-chain Support**: Native integration with `viem` and `ethers`.
-- [ ] **Auth**: Wallet signature verification (SIWE) helpers.
-- [ ] **React**: Official `@guildpass/react` hooks package.
-
-## 🤝 Contributing
-
-We welcome contributions from the community! See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full guide.
-
-1. Browse open issues tagged [`good first issue`](https://github.com/Adamantine-Guild/guildpass-sdk/issues?q=label%3A%22good+first+issue%22) or [`help wanted`](https://github.com/Adamantine-Guild/guildpass-sdk/issues?q=label%3A%22help+wanted%22).
-2. Comment on the GitHub issue you'd like to work on.
-3. Fork the repo, create a feature branch, implement your change, open a PR.
-
-### Maintainer contact
-
-- Contact: cerealboxx123@gmail.com
-
-## 📄 License
-
-Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
+For complete documentation, see the [V2 API Reference](docs/api-reference.md) and runnable [Quickstart Example](examples/quickstart.ts).
 
 ---
 
-<div align="center">
-  <p>Built with ❤️ by the <b>GuildPass</b> team</p>
-  <a href="https://guildpass.xyz">guildpass.xyz</a>
-</div>
+# Why TypeScript?
 
+GuildPass deals with domain concepts that benefit from explicit contracts, including:
+
+- membership state;
+- community identifiers;
+- Stellar addresses;
+- access decisions;
+- governance data;
+- API errors;
+- SDK configuration.
+
+TypeScript helps surface mistakes before applications reach production.
+
+For example, the SDK can expose a constrained type such as:
+
+```ts
+export type GuildPassNetwork = "stellar";
+```
+
+rather than allowing arbitrary unsupported network values throughout an application.
+
+---
+
+# Installation
+
+Once the package is published, applications will be able to install it using:
+
+```bash
+pnpm add @guildpass/sdk
+```
+
+or:
+
+```bash
+npm install @guildpass/sdk
+```
+
+or:
+
+```bash
+yarn add @guildpass/sdk
+```
+
+> The V2 package is currently under active development. Check the repository or package registry for the latest published availability.
+
+---
+
+# Running the Repository Locally
+
+The following steps are for developers who want to contribute to the SDK itself.
+
+## Prerequisites
+
+Install:
+
+- Git
+- Node.js 24 or newer
+- pnpm 11.x
+
+Check Node:
+
+```bash
+node --version
+```
+
+Expected:
+
+```text
+v24.x.x
+```
+
+or newer.
+
+Check pnpm:
+
+```bash
+pnpm --version
+```
+
+The repository currently uses:
+
+```text
+11.16.0
+```
+
+---
+
+## 1. Fork the Repository
+
+Fork:
+
+```text
+Adamantine-guild/guildpass-sdk
+```
+
+into your GitHub account.
+
+---
+
+## 2. Clone Your Fork
+
+```bash
+git clone https://github.com/<YOUR_USERNAME>/guildpass-sdk.git
+cd guildpass-sdk
+```
+
+---
+
+## 3. Add the Upstream Repository
+
+```bash
+git remote add upstream https://github.com/Adamantine-guild/guildpass-sdk.git
+```
+
+Verify:
+
+```bash
+git remote -v
+```
+
+You should see:
+
+```text
+origin    your fork
+upstream  Adamantine-guild/guildpass-sdk
+```
+
+---
+
+## 4. Install Dependencies
+
+```bash
+pnpm install
+```
+
+For reproducible installs in CI or when testing the existing lockfile:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+pnpm may request approval for packages that require installation-time build scripts.
+
+If prompted:
+
+```bash
+pnpm approve-builds
+```
+
+Only approve expected dependencies.
+
+For the current toolchain, `esbuild` is required by the SDK build/test infrastructure.
+
+---
+
+# Development Commands
+
+## Typecheck
+
+```bash
+pnpm typecheck
+```
+
+This runs:
+
+```text
+tsc --noEmit
+```
+
+and validates the TypeScript source without generating build output.
+
+---
+
+## Build
+
+```bash
+pnpm build
+```
+
+This creates the distributable package under:
+
+```text
+dist/
+```
+
+The current V2 build produces files such as:
+
+```text
+dist/index.js
+dist/index.js.map
+dist/index.d.ts
+```
+
+---
+
+## Run Tests
+
+```bash
+pnpm test
+```
+
+Tests use Vitest.
+
+---
+
+## Watch Tests
+
+```bash
+pnpm test:watch
+```
+
+---
+
+## Development Build
+
+```bash
+pnpm dev
+```
+
+This runs tsup in watch mode and rebuilds the SDK as files change.
+
+---
+
+## Lint
+
+```bash
+pnpm lint
+```
+
+---
+
+## Format
+
+```bash
+pnpm format
+```
+
+---
+
+# Recommended Local Validation
+
+Before opening a pull request, run:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm build
+pnpm test
+```
+
+A contribution should not be considered ready when any of these checks fail.
+
+---
+
+# SDK Build Output
+
+The SDK uses `tsup` to create its distributable output.
+
+Source:
+
+```text
+src/index.ts
+```
+
+becomes:
+
+```text
+dist/index.js
+dist/index.d.ts
+dist/index.js.map
+```
+
+The package exposes the built output through:
+
+```json
+{
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  }
+}
+```
+
+This means consumers interact with the public package entry point rather than importing files directly from `src/`.
+
+---
+
+# Public API Design
+
+A key V2 principle is to keep the public SDK interface intentionally small.
+
+Not every internal helper should become part of the package's public API.
+
+Code exported through:
+
+```ts
+src / index.ts;
+```
+
+should be treated as part of the SDK's external contract.
+
+Changes to those exports therefore require more care than changes to internal implementation details.
+
+---
+
+# Design Principles
+
+## 1. Keep the SDK Simple
+
+Applications should not need to understand GuildPass internals to use GuildPass.
+
+The SDK should hide infrastructure complexity without hiding meaningful errors.
+
+---
+
+## 2. Strong Types First
+
+Public APIs should expose clear TypeScript contracts.
+
+Avoid returning unstructured objects where meaningful domain types can be used.
+
+---
+
+## 3. Stellar First
+
+GuildPass SDK V2 is being rebuilt around the current GuildPass Stellar direction.
+
+Legacy EVM abstractions should not be reintroduced unless there is an explicit architectural decision to support them.
+
+---
+
+## 4. Avoid Unnecessary Dependencies
+
+Every dependency added to an SDK affects downstream applications.
+
+Dependencies should therefore be introduced carefully.
+
+A small utility should preferably use platform capabilities where practical rather than pulling in a large dependency tree.
+
+---
+
+## 5. Browser and Runtime Safety
+
+SDK code should avoid unnecessary assumptions about:
+
+- Node-only globals;
+- browser-only globals;
+- filesystem access;
+- process state.
+
+Runtime-specific features should have explicit boundaries.
+
+---
+
+## 6. Deterministic Behaviour
+
+Validation, parsing, encoding and policy-related utilities should return predictable results for the same inputs.
+
+This makes the SDK easier to test and safer for consuming applications.
+
+---
+
+## 7. Preserve Public Compatibility
+
+Once a public V2 API is established, avoid breaking it casually.
+
+Breaking SDK changes affect every application consuming the package.
+
+---
+
+# Stellar Direction
+
+GuildPass SDK V2 is being designed around Stellar and Soroban integration.
+
+Future SDK capabilities may include abstractions around:
+
+- Stellar account validation;
+- Stellar network configuration;
+- Soroban contract interactions;
+- membership contracts;
+- community access checks;
+- transaction construction;
+- typed GuildPass contract responses.
+
+Blockchain-specific logic should remain isolated from unrelated SDK functionality.
+
+For example:
+
+```text
+Application
+     │
+     ▼
+GuildPassClient
+     │
+     ├── Core API
+     │
+     └── Stellar / Soroban
+```
+
+The exact public APIs will be introduced incrementally as the corresponding GuildPass infrastructure stabilises.
+
+---
+
+# Error Handling
+
+SDK consumers should eventually be able to distinguish between different classes of failure instead of handling every error as an arbitrary string.
+
+Examples may include:
+
+```text
+configuration errors
+validation errors
+transport errors
+GuildPass API errors
+Stellar errors
+contract errors
+```
+
+Errors exposed publicly should contain useful context without leaking credentials or sensitive implementation details.
+
+---
+
+# Testing Philosophy
+
+The SDK should favour focused deterministic tests.
+
+Tests should cover:
+
+- expected behaviour;
+- invalid input;
+- boundary conditions;
+- malformed data;
+- compatibility behaviour;
+- security-sensitive edge cases;
+- public API contracts.
+
+A bug fix should preferably include a regression test demonstrating the original failure.
+
+---
+
+# Continuous Integration
+
+GuildPass SDK uses GitHub Actions to validate contributor changes.
+
+The intended validation path is:
+
+```text
+Pull Request
+     │
+     ▼
+Install dependencies
+     │
+     ▼
+Typecheck
+     │
+     ▼
+Build
+     │
+     ▼
+Tests
+     │
+     ▼
+Required checks pass
+```
+
+Pull requests should not be merged while required SDK checks are failing.
+
+---
+
+# Pull Request Automation
+
+GuildPass repositories use central PR automation maintained by Adamantine Guild.
+
+The automation can evaluate:
+
+- workflow status;
+- failed checks;
+- pending checks;
+- merge conflicts;
+- merge eligibility.
+
+Where configured, eligible pull requests may be automatically merged after their required CI checks pass.
+
+A failed pipeline should never be treated as a successful contribution.
+
+Workflow changes under:
+
+```text
+.github/workflows/
+```
+
+may require additional maintainer review.
+
+---
+
+# Contributing
+
+Contributions are welcome.
+
+Before contributing, read:
+
+```text
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+```
+
+---
+
+# Contributor Workflow
+
+## 1. Sync Your Fork
+
+```bash
+git checkout main
+git fetch upstream
+git pull upstream main
+git push origin main
+```
+
+---
+
+## 2. Create a Branch
+
+Do not work directly on `main`.
+
+Example:
+
+```bash
+git checkout -b feat/stellar-address-validator
+```
+
+Recommended branch prefixes:
+
+```text
+feat/
+fix/
+test/
+docs/
+refactor/
+chore/
+ci/
+```
+
+---
+
+## 3. Work on One Issue
+
+Contributor issues are intentionally scoped so different contributors can work concurrently.
+
+Do not make your implementation depend on another open campaign issue unless the issue explicitly states otherwise.
+
+---
+
+## 4. Validate Your Changes
+
+Run:
+
+```bash
+pnpm typecheck
+pnpm build
+pnpm test
+```
+
+---
+
+## 5. Open a Pull Request
+
+Reference the issue being solved:
+
+```text
+Closes #123
+```
+
+Your pull request should explain:
+
+- what was changed;
+- why it was changed;
+- how the implementation works;
+- which tests were added;
+- any important design decisions.
+
+---
+
+# Contributor Issues
+
+GuildPass SDK development is divided into focused contributor tasks.
+
+Issues may carry labels such as:
+
+```text
+Third Campaign
+advanced
+expert
+stellar
+security
+testing
+type-safety
+performance
+backend
+```
+
+Tasks are designed, where possible, so multiple contributors can work on different capabilities concurrently.
+
+---
+
+# Commit Messages
+
+Use clear commit messages.
+
+Recommended format:
+
+```text
+type(scope): description
+```
+
+Examples:
+
+```text
+feat(stellar): add Stellar address validation
+feat(client): add access-check client method
+fix(config): reject malformed API URL
+test(client): cover transport timeout behaviour
+docs(sdk): document Stellar configuration
+```
+
+---
+
+# What Should Not Be Added Casually
+
+The V2 rebuild deliberately removed a large amount of legacy complexity.
+
+Do not reintroduce components such as:
+
+```text
+ethers adapters
+viem adapters
+SIWE
+EIP-712
+EVM multicall
+generic multichain abstractions
+```
+
+unless there is a specific approved issue or architectural decision requiring them.
+
+The goal of V2 is not to reproduce V1 file-for-file.
+
+---
+
+# Repository History
+
+GuildPass SDK V2 is a rebuild of the original SDK, but the original work has not been lost.
+
+The pre-rebuild implementation remains accessible through the repository's history and preserved archive references.
+
+This allows maintainers to inspect previous implementations where useful while keeping the V2 architecture clean.
+
+Contributors should build against the current `main` branch rather than restoring legacy V1 modules.
+
+---
+
+# Security
+
+Do not commit:
+
+- private keys;
+- Stellar secret keys;
+- seed phrases;
+- API tokens;
+- credentials;
+- production environment files;
+- authentication secrets.
+
+Security vulnerabilities should not be disclosed through public GitHub issues.
+
+Follow:
+
+```text
+SECURITY.md
+```
+
+for responsible disclosure guidance.
+
+---
+
+# Licence
+
+GuildPass SDK is licensed under the MIT License.
+
+See:
+
+```text
+LICENSE
+```
+
+for the complete licence terms.
+
+---
+
+# Adamantine Guild
+
+GuildPass is part of the Adamantine Guild open-source ecosystem.
+
+### GuildPass SDK
+
+```text
+https://github.com/Adamantine-guild/guildpass-sdk
+```
+
+### Adamantine Guild
+
+```text
+https://github.com/Adamantine-guild
+```
+
+---
+
+<p align="center">
+  <img src="./logo/Guidlpass%20SDK%20Logo.png" alt="GuildPass SDK Logo" width="110" />
+</p>
+
+<p align="center">
+  <strong>GuildPass SDK</strong><br />
+  A simpler way to build on GuildPass.
+</p>

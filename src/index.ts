@@ -1,54 +1,21 @@
-// Main Client
-export * from './client/GuildPassClient';
-export * from './client/GuildPassClientBuilder';
-
-// Cache
-export * from './cache/cache.types';
-
-// Services
-export * from './access/access.service';
-export * from './membership/membership.service';
-export * from './roles/roles.service';
-export * from './guilds/guilds.service';
-export * from './rules';
-export * from './contracts/contractClient';
-export * from './contracts/contract.types';
-export * from './contracts/providers';
-
-// Types
-export * from './types';
-export type { ResponseMetadata } from './http/http.types';
-
-// Errors
-export * from './errors/GuildPassError';
-export * from './errors/errorCodes';
-export * from './errors/errorTypes';
-export * from './errors/guards';
-
-// Utils
-export * from './utils/address';
-export * from './utils/validation';
-export * from './utils/formatting';
-export * from './utils/pagination';
-
-// Config
-export * from './config/defaultConfig';
-export * from './config/networkConfig';
-export * from './config/sdkConfig';
-
-// Validation
-export * from './validation/responseGuards';
-export * from './validation/assertResponse';
-export * from './wallet/helpers';
-
-// SIWE (Sign-In With Ethereum)
-export * from './siwe';
-
-// Middleware
-export * from './middleware';
-
-// Network
-export * from './network';
-
-// EIP-712 (typed-data signing/verification)
-export * from './eip712';
+export * from "./cache/CachePolicyEvaluator.js";
+export * from "./client/index.js";
+export * from "./config/index.js";
+export * from "./context/RequestContext.js";
+export * from "./validation/index.js";
+export * from "./diagnostics/index.js";
+export * from "./headers/index.js";
+export * from "./middleware/index.js";
+export * from "./security/index.js";
+export * from "./types/index.js";
+export * from "./utils/querySerializer.js";
+export * from "./utils/batchPlanner.js";
+export * from "./utils/pagination.js";
+export * from "./utils/requestDeduplicator.js";
+export * from "./time/index.js";
+export * from "./stellar/index.js";
+export * from "./transport/index.js";
+export * from "./errors/index.js";
+export * from "./capabilities/index.js";
+export * from "./retry/index.js";
+export * from "./resources/index.js";

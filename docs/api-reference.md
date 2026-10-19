@@ -1,828 +1,269 @@
-# API Reference
+# GuildPass SDK V2 API Reference
 
-## Import Paths
+Comprehensive reference documentation for the GuildPass TypeScript SDK V2.
 
-The SDK supports tree-shakeable subpath imports. You can import focused modules directly to minimize your bundle size:
+---
 
-- `@guildpass/sdk/client`: Main `GuildPassClient` class.
-- `@guildpass/sdk/errors`: Error classes and codes (`GuildPassError`, `GuildPassConfigError`,
-  `GuildPassNetworkError`, `GuildPassApiError`, `GuildPassResponseValidationError`, `GuildPassErrorCode`).
-- `@guildpass/sdk/utils`: Utility functions (`normaliseAddress`, `validateAddress`, `formatIsoDate`, etc.).
-- `@guildpass/sdk/types`: TypeScript definitions.
-- `@guildpass/sdk/adapters/viem`: `viemContractProvider` — wrap a viem `PublicClient` as the SDK's contract provider.
-- `@guildpass/sdk/adapters/ethers`: `ethersContractProvider` — wrap an ethers `Provider` as the SDK's contract provider.
+## Table of Contents
+- [Installation](#installation)
+- [Client Initialization](#client-initialization)
+  - [Configuration Options](#configuration-options)
+- [Stellar Helpers](#stellar-helpers)
+  - [Account Validation & Parsing](#account-validation--parsing)
+- [Access Resource](#access-resource)
+  - [client.access.check](#clientaccesscheck)
+  - [Access Decision Types](#access-decision-types)
+- [Pagination Helpers](#pagination-helpers)
+  - [paginate](#paginate)
+  - [collectAll](#collectall)
+  - [createPaginatedApi](#createpaginatedapi)
+- [Error Handling](#error-handling)
+  - [Error Hierarchy](#error-hierarchy)
+  - [Error Handling Pattern](#error-handling-pattern)
+- [Diagnostics & Telemetry](#diagnostics--telemetry)
+- [Security & Redaction](#security--redaction)
 
-ABI encoding helpers and contract decoders are re-exported from the root package:
+---
 
-```typescript
+## Installation
+
+```bash
+pnpm add @guildpass/sdk
+# or npm
+npm install @guildpass/sdk
+# or yarn
+yarn add @guildpass/sdk
+```
+
+---
+
+## Client Initialization
+
+The primary entry point is `GuildPassClient`.
+
+```ts
+import { GuildPassClient } from "@guildpass/sdk";
+
+// Initialize with a base URL
+const client = new GuildPassClient({
+  baseUrl: "https://api.testnet.guildpass.io",
+  timeoutMs: 10_000,
+  headers: {
+    "x-api-key": "your-api-key-here",
+  },
+});
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `baseUrl` | `string` | **Required** | The GuildPass Core API URL (must be `http:` or `https:`, no credentials). |
+| `timeoutMs` | `number` | `10000` | Request timeout in milliseconds (between `100` and `60000`). |
+| `headers` | `Record<string, string>` | `{}` | Custom HTTP headers sent with every request (keys normalized to lowercase). |
+
+---
+
+## Stellar Helpers
+
+GuildPass SDK V2 provides lightweight, zero-dependency Stellar StrKey validation utilities.
+
+### Account Validation & Parsing
+
+```ts
 import {
-  getFunctionSelector,
-  encodeAbiParams,
-  buildFunctionSignature,
-  decodeAddressResult,
-  decodeUint256Result,
-  decodeBoolResult,
-} from '@guildpass/sdk';
-```
+  parseStellarAccountId,
+  isStellarAccountId,
+  safeParseStellarAccountId,
+} from "@guildpass/sdk";
 
-You can also import everything from the root `@guildpass/sdk` (the adapter subpaths are intentionally excluded from the root export so they never affect your bundle unless imported).
+const account = "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7";
 
-## GuildPassClient
-
-The main constructor. You can initialize the client by passing a config object directly, or by using the `GuildPassClientBuilder` for a fluent interface.
-
-### Initialization
-
-**Using the Builder (Recommended):**
-```typescript
-import { GuildPassClientBuilder } from '@guildpass/sdk';
-
-const client = new GuildPassClientBuilder('https://api.guildpass.xyz')
-  .withApiKey('secret-key')
-  .withTimeout(5000)
-  .build();
-```
-
-**Using the Constructor:**
-```typescript
-new GuildPassClient(config: GuildPassClientConfig)
-```
-
-### Methods
-
-- `getConfig()`: Returns the current non-sensitive configuration. Sensitive
-  values such as `apiKey` are omitted from this public snapshot.
-
----
-
-## Access Module (`client.access`)
-
-### `checkAccess(params: AccessCheckParams, options?: RequestOptions)`
-
-Checks if a wallet can access a resource.
-
-- **Returns**: `Promise<AccessCheckResult>` (or `Promise<{ data: AccessCheckResult; meta: ResponseMetadata }>` when `options.includeMeta` is `true`)
-- **Options**: Supports `timeoutMs`, `retry`, `includeMeta`
-
-### `checkAccessBatch(items: AccessCheckParams[], options?: AccessCheckBatchOptions & RequestOptions)`
-
-Checks access for multiple resources or wallets concurrently.
-
-- **Returns**: `Promise<AccessCheckBatchResult[]>`
-- **Options**:
-  - `concurrency` (default `5`, max `50`): static in-flight limit.
-  - `failFast` (default `false`): abort the batch on the first failure.
-  - `adaptiveConcurrency` (default `false`): opt-in AIMD mode. The effective
-    in-flight limit starts at `concurrency`, halves whenever the backend
-    responds with HTTP 429 or 5xx, and grows back by one after every
-    `currentLimit` consecutive successes (capped at `concurrency`). Use this
-    for large batches against a backend whose health may degrade mid-batch.
-
-### `checkAccessBatch(params: { walletAddress, guildId, resourceIds }, options?: AccessCheckBatchOptions & RequestOptions)`
-
-Single-wallet form for gating a page of resources in one call. Duplicate
-`resourceIds` are collapsed to a single request. Each resource flows through
-the configured cache independently, so repeat batches and follow-up
-`checkAccess` calls for the same resource are cache hits.
-
-- **Returns**: `Promise<Record<string, { status: 'fulfilled'; value: AccessCheckResult } | { status: 'rejected'; error: Error }>>` keyed by resourceId
-
-```typescript
-const results = await client.access.checkAccessBatch({
-  walletAddress: '0x123...',
-  guildId: 'guild-a',
-  resourceIds: ['res-1', 'res-2', 'res-3'],
-});
-
-for (const [resourceId, entry] of Object.entries(results)) {
-  if (entry.status === 'fulfilled') {
-    console.log(resourceId, entry.value.hasAccess);
-  } else {
-    console.error(resourceId, entry.error);
-  }
+// 1. Boolean check
+if (isStellarAccountId(account)) {
+  console.log("Valid Stellar account format");
 }
-```
 
-A server-side batch endpoint is a natural follow-up; today the method
-parallelizes the existing single-resource checks internally with the
-`concurrency` option (default 5, max 50).
+// 2. Strongly typed parser (throws Error on invalid StrKey/checksum)
+const parsed = parseStellarAccountId(account);
 
-### `checkRoleAccess(params: RoleAccessCheckParams, options?: RequestOptions)`
-
-Checks if a wallet has a specific role.
-
-- **Returns**: `Promise<boolean>`
-
-> [!NOTE]
-> **Known limitations:** On-chain validation for `WHITELIST` access requirements is currently not supported and will throw a `NOT_IMPLEMENTED` error. For whitelist-style gating, we recommend using the SIWE-based or off-chain `client.access.checkAccess()` API instead.
-
----
-
-## Membership Module (`client.membership`)
-
-### `getMembership(params: MembershipParams, options?: RequestOptions)`
-
-Fetches detailed membership status.
-
-- **Returns**: `Promise<Membership>`
-
-### `isMember(params: MembershipParams, options?: RequestOptions)`
-
-Quick check for active membership.
-
-- **Returns**: `Promise<boolean>`
-
----
-
-## Roles Module (`client.roles`)
-
-### `getRoles(params: GetRolesParams, options?: RequestOptions)`
-
-Fetches roles for a guild.
-
-- **Params**: `{ guildId: string; cursor?: string; limit?: number }`
-- **Returns**: `Promise<GuildRole[]>` when `cursor`/`limit` are omitted (matches
-  pre-pagination behavior). `Promise<PaginatedResult<GuildRole>>` (`{ items,
-  nextCursor, hasMore }`) when either `cursor` or `limit` is supplied.
-- **Caching**: when a `cache` adapter is configured, each distinct
-  `cursor`/`limit` combination is cached under its own key, so paging through
-  results never returns a stale/incorrect page from the cache. Calling
-  `client.invalidateGuildCache(guildId)` clears the default page as well as
-  every paginated entry for that guild.
-
-```typescript
-// Page through all roles in a guild.
-let cursor: string | undefined;
-do {
-  const page = await client.roles.getRoles({ guildId: 'prime-guild', cursor, limit: 50 });
-  console.log(page.items);
-  cursor = page.nextCursor;
-} while (cursor);
-
-// Or use the paginateAll helper to iterate every item across all pages:
-import { paginateAll } from '@guildpass/sdk';
-for await (const role of paginateAll((cursor) => client.roles.getRoles({ guildId: 'prime-guild', cursor, limit: 50 }))) {
-  console.log(role.name);
-}
-```
-
-### `getUserRoles(params: GetUserRolesParams, options?: RequestOptions)`
-
-Fetches roles assigned to a user. Supports the same `cursor`/`limit`
-pagination parameters and caching behavior as `getRoles` above.
-
-- **Params**: `{ walletAddress: string; guildId: string; cursor?: string; limit?: number }`
-- **Returns**: `Promise<GuildRole[]>` (or `Promise<PaginatedResult<GuildRole>>` when paginated)
-
-### `hasRole(params: HasRoleParams, options?: RequestOptions)`
-
-Convenience method that checks whether a wallet holds a specific role in a
-guild. Delegates to `client.access.checkRoleAccess` internally — no HTTP logic
-is duplicated and the result is cached the same way as any other role check.
-
-- **Params**: `{ walletAddress: string; guildId: string; roleId: string }`
-- **Returns**: `Promise<boolean>` — `true` if the wallet holds the role, `false` otherwise.
-
-**Example**:
-
-```typescript
-const isModerator = await client.roles.hasRole({
-  walletAddress: '0x1234...5678',
-  guildId: 'prime-guild',
-  roleId: 'moderator',
-});
-
-if (isModerator) {
-  console.log('Wallet is a moderator');
+// 3. Safe parser without throwing
+const result = safeParseStellarAccountId(account);
+if (result.success) {
+  console.log("Parsed account:", result.data);
+} else {
+  console.error("Validation failed:", result.error.message);
 }
 ```
 
 ---
 
-## Guilds Module (`client.guilds`)
+## Access Resource
 
-### `getGuild(params: GetGuildParams, options?: RequestOptions)`
+### `client.access.check`
 
-Fetches basic guild metadata.
+Evaluates whether a Stellar account is authorized to perform an action or access a resource within a guild. Policy evaluation is delegated solely to GuildPass Core.
 
-- **Returns**: `Promise<Guild>`
+```ts
+import { GuildPassClient, type AccessDecision } from "@guildpass/sdk";
 
-### `getGuildConfig(params: GetGuildParams, options?: RequestOptions)`
-
-Fetches full guild configuration.
-
-- **Returns**: `Promise<GuildConfig>`
-
----
-
-## Contract Module (`client.contracts`)
-
-The contract module provides typed convenience methods for common token-gating
-patterns (ERC-20 balance, ERC-721 ownership, ERC-1155 balance), plus a generic
-`readContract` escape hatch for any read-only function not covered by the
-built-in methods. All methods participate in the same per-chain resolution
-(issue #1) and multi-RPC failover (issue #14) logic — no duplicate
-chain-selection code.
-
-### `getGuildOwner(params: GuildOwnerParams)`
-
-Fetches the owner wallet address for a guild through the configured JSON-RPC
-provider and contract address.
-
-```typescript
-await client.contracts.getGuildOwner({
-  guildId: 'guild_1',
-  chainId: 8453, // optional chain override
-  contractAddress: '0x0000000000000000000000000000000000000000', // optional contract override
-});
-```
-
-- **Returns**: `Promise<string>`
-- **Requires**: an `rpcUrl` and a contract address from the resolved chain config or per-call `contractAddress`
-- **Contract call**: `eth_call` to `getGuildOwner(bytes32)`
-- **Guild ID encoding**: guild IDs are encoded to a 32-byte (bytes32) ABI value using the following strict, mutually exclusive rules applied in order:
-
-  | Priority | Rule | Input example | Encoding |
-  |----------|------|---------------|----------|
-  | 1 | **Hex mode** — input matches `/^0x[a-fA-F0-9]{64}$/` exactly (case-insensitive, `0x` prefix + exactly 64 hex digits). | `"0xabcd…0001"` | Strip `0x`, lowercase. |
-  | 2 | **Integer mode** — input matches `/^\d+$/` (only ASCII decimal digits, no leading spaces after trim) AND the value is ≤ `2^256 − 1`. Throws `INVALID_INPUT` if the value exceeds uint256 max. | `"42"`, `"0"` | `BigInt` → left-zero-padded 32-byte hex. |
-  | 3 | **UTF-8 mode** — everything else. The raw string is UTF-8 encoded and right-zero-padded to 32 bytes. Throws `INVALID_INPUT` if the UTF-8 encoding exceeds 32 bytes. | `"prime-guild"`, `"guild_1"` | UTF-8 bytes → right-zero-padded 32-byte hex. |
-
-  > **Disambiguation rules:**
-  > - A string that starts with `0x` but is shorter than 66 characters or contains non-hex characters is **not** treated as a hex value — it falls through to UTF-8 mode (e.g. `"0xdeadbeef"` → UTF-8 bytes of that literal string).
-  > - A string of only ASCII decimal digits (e.g. `"42"`) is **always** integer mode; it is never encoded as UTF-8, even though `"42"` and the integer 42 produce different byte sequences.
-  > - These rules are mutually exclusive: an input is classified by exactly one mode, eliminating all ambiguity.
-
-- **Errors**: throws `INVALID_CONFIG` for missing RPC/contract config, `INVALID_INPUT` for invalid guild IDs (uint256 overflow or UTF-8 length > 32 bytes), `INVALID_ADDRESS` for invalid contract addresses, `HTTP_ERROR` for RPC failures, and `INVALID_RESPONSE` for malformed RPC return data
-
-### `getMembershipTokenBalance(params: TokenBalanceParams)`
-
-Fetches the raw membership token balance for a wallet through the configured
-JSON-RPC provider and contract address.
-
-```typescript
-await client.contracts.getMembershipTokenBalance({
-  walletAddress: '0x1234567890123456789012345678901234567890',
-  chainId: 8453, // optional chain override
-  contractAddress: '0x0000000000000000000000000000000000000000', // optional contract override
-});
-```
-
-- **Returns**: `Promise<string>`
-- **Requires**: `rpcUrl` and either `contractAddress` in client config or a per-call override
-- **Contract call**: `eth_call` to `balanceOf(address)`
-- **Errors**: throws `INVALID_CONFIG` for missing RPC/contract config, `INVALID_ADDRESS` for invalid wallet or contract addresses, `HTTP_ERROR` for RPC failures, and `INVALID_RESPONSE` for malformed RPC return data
-
-### `getERC20Balance(params: ERC20BalanceParams)`
-
-Fetches the ERC-20 token balance for a wallet via `balanceOf(address)`.
-
-```typescript
-await client.contracts.getERC20Balance({
-  walletAddress: '0x1234567890123456789012345678901234567890',
-  contractAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
-  chainId: 1, // optional chain override
-});
-```
-
-- **Returns**: `Promise<string>` — the raw balance in base units (decimal string).
-- **Requires**: `contractAddress` (always required — there is no single "membership token" for arbitrary ERC-20 tokens).
-- **Contract call**: `eth_call` to `balanceOf(address)`.
-- **Errors**: throws `INVALID_CONFIG` for missing RPC config, `INVALID_ADDRESS` for invalid wallet/contract addresses, `HTTP_ERROR` for RPC failures, `INVALID_RESPONSE` for malformed return data.
-
-### `ownsERC721Token(params: ERC721TokenParams)`
-
-Checks whether a wallet owns a specific ERC-721 token via `ownerOf(uint256)`.
-
-```typescript
-await client.contracts.ownsERC721Token({
-  walletAddress: '0x1234567890123456789012345678901234567890',
-  tokenId: '42',
-  contractAddress: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D', // BAYC
-  chainId: 1, // optional chain override
-});
-```
-
-- **Returns**: `Promise<boolean>` — `true` if the wallet owns the token, `false` otherwise.
-- **Requires**: `contractAddress` and `tokenId`.
-- **Contract call**: `eth_call` to `ownerOf(uint256)`.
-- **Errors**: throws `INVALID_CONFIG` for missing RPC config, `INVALID_ADDRESS` for invalid addresses, `HTTP_ERROR` for RPC failures, `INVALID_RESPONSE` for malformed return data.
-
-### `getERC1155Balance(params: ERC1155BalanceParams)`
-
-Fetches the ERC-1155 token balance for a wallet and token ID via `balanceOf(address,uint256)`.
-
-```typescript
-await client.contracts.getERC1155Balance({
-  walletAddress: '0x1234567890123456789012345678901234567890',
-  tokenId: '1',
-  contractAddress: '0x495f947276749Ce646f68AC8c248420045cb7b5e', // OpenSea Shared Storefront
-  chainId: 1, // optional chain override
-});
-```
-
-- **Returns**: `Promise<string>` — the raw balance in base units (decimal string).
-- **Requires**: `contractAddress` and `tokenId`.
-- **Contract call**: `eth_call` to `balanceOf(address,uint256)`.
-- **Errors**: throws `INVALID_CONFIG` for missing RPC config, `INVALID_ADDRESS` for invalid addresses, `HTTP_ERROR` for RPC failures, `INVALID_RESPONSE` for malformed return data.
-
-### `readContract(params: ReadContractParams)`
-
-Generic escape hatch for arbitrary read-only contract calls. Accepts an ABI fragment, function name, and arguments, then encodes and executes a single `eth_call`.
-
-Use this when the built-in convenience methods (`getERC20Balance`, `ownsERC721Token`, `getERC1155Balance`) do not cover your use case.
-
-```typescript
-const result = await client.contracts.readContract({
-  contractAddress: '0x...',
-  abi: {
-    type: 'function',
-    name: 'totalSupply',
-    inputs: [],
-    outputs: [{ type: 'uint256' }],
-  },
-  functionName: 'totalSupply',
-  args: [],
-  chainId: 1, // optional chain override
-});
-// `result` is the raw hex response; decode with the exported helpers:
-import { decodeUint256Result } from '@guildpass/sdk/contracts';
-const supply = decodeUint256Result(result);
-```
-
-- **Returns**: `Promise<string>` — the raw hex result of the `eth_call`. Decode it with the exported helpers (`decodeUint256Result`, `decodeAddressResult`, `decodeBoolResult`).
-- **Supported ABI types**: `address`, `bool`, `uint*` (all fixed-width variants up to `uint256`), `int*`, `bytes32`. Dynamic types (`bytes`, `string`) and tuples are **not** supported. For calls requiring dynamic encoding, use `batchEthCall` with pre-encoded calldata.
-- **Requires**: `contractAddress`, `abi`, `functionName`, and `args` (an empty array for parameterless functions).
-- **Contract call**: `eth_call` using the dynamically encoded selector + arguments from the supplied ABI fragment.
-- **Errors**: throws `INVALID_CONFIG` for missing RPC config, `INVALID_ADDRESS` for invalid contract addresses, `INVALID_INPUT` when `functionName` does not match `abi.name`, when argument count/type mismatches occur, or when an unsupported ABI type is used, `HTTP_ERROR` for RPC failures, `INVALID_RESPONSE` for non-hex results.
-
-### `getMembershipTokenBalances(params: MembershipTokenBalancesParams)`
-
-Fetches the membership token balance for a wallet across **every** chain
-configured in the client's `chains` map (or the single default `chainId` when
-no per-chain map is set), in a single call.
-
-All chain queries run in parallel. A failure on one chain's RPC does **not**
-prevent results from the other chains — each chain's outcome is reported
-independently via the `ChainBalanceResult` discriminated union.
-
-```typescript
 const client = new GuildPassClient({
-  apiUrl: 'https://api.guildpass.xyz',
-  chains: {
-    1: {
-      rpcUrl: 'https://eth.rpc.example',
-      contractAddress: '0x1111111111111111111111111111111111111111',
-    },
-    8453: {
-      rpcUrl: 'https://base.rpc.example',
-      contractAddress: '0x2222222222222222222222222222222222222222',
-    },
+  baseUrl: "https://api.testnet.guildpass.io",
+});
+
+const decision: AccessDecision = await client.access.check({
+  guildId: "guild-alpha",
+  account: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7",
+  resource: "premium-content",
+  action: "read",
+  context: {
+    ipCountry: "US",
   },
 });
 
-const balances = await client.contracts.getMembershipTokenBalances({
-  walletAddress: '0x1234567890123456789012345678901234567890',
-  contractAddress: '0x...', // optional: override the contract on every chain
-});
-
-// balances: Record<number, ChainBalanceResult>
-// {
-//   1:    { status: 'success', balance: '1000000000000000000' },
-//   8453: { status: 'error',   error:   'HTTP 503: Service Unavailable' },
-// }
-
-for (const [chainId, result] of Object.entries(balances)) {
-  if (result.status === 'success') {
-    console.log(`Chain ${chainId}: ${result.balance}`);
-  } else {
-    console.warn(`Chain ${chainId} failed: ${result.error}`);
-  }
+if (decision.allowed) {
+  console.log("Access granted!");
+} else {
+  console.log("Access denied:", decision.reason);
 }
 ```
 
-- **Returns**: `Promise<MembershipTokenBalancesResult>` — `Record<number, ChainBalanceResult>` keyed by chain ID.
-  Each entry is either `{ status: 'success'; balance: string }` or `{ status: 'error'; error: string }`.
-- **Requires**: at least one chain must be determinable from `chainId` or `chains` in the client config; throws `INVALID_CONFIG` otherwise.
-- **Contract call**: one parallel `eth_call` to `balanceOf(address)` per configured chain.
-- **Partial failures**: a failed chain is reported per-chain; all other chains are unaffected and returned normally.
-- **Errors**: throws `INVALID_CONFIG` when no chains are configured, `INVALID_ADDRESS` for invalid wallet addresses. Per-chain RPC and contract errors are captured inside each chain's `ChainBalanceResult` rather than surfaced as thrown exceptions.
+> **Note**: An HTTP 403 Forbidden response from GuildPass Core is treated as an intentional access denial and returns an `AccessDecision` with `allowed: false` rather than throwing an exception.
 
-### `getMembershipTokenBalancesBatch(params: TokenBalancesBatchParams)`
+### Access Decision Types
 
-Fetches membership token balances for multiple wallet addresses in a single
-JSON-RPC batch request. Preserves the input order of wallet addresses.
+```ts
+export interface AccessCheckRequest {
+  guildId: string;
+  account: string;
+  resource?: string;
+  action?: string;
+  context?: Record<string, unknown>;
+}
 
-```typescript
-await client.contracts.getMembershipTokenBalancesBatch({
-  walletAddresses: [
-    '0x1234567890123456789012345678901234567890',
-    '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-  ],
-  chainId: 8453, // optional chain override
-  contractAddress: '0x0000000000000000000000000000000000000000', // optional contract override
-  maxBatchSize: 100, // optional limit to avoid provider payload limits (default 100)
-  chunk: true, // optional automatic splitting
-});
-```
-
-- **Returns**: `Promise<BatchItemResult[]>` — ordered results, one per input address.
-  Each result has `{ status: 'success', result: '<balance-as-string>' }` or
-  `{ status: 'error', error: '<reason>' }`.
-- **Requires**: same config as `getMembershipTokenBalance`
-- **Contract call**: single JSON-RPC batch of `eth_call` to `balanceOf(address)`
-- **Partial failures**: a failed address is reported individually; other addresses are unaffected
-- **Errors**: throws `INVALID_INPUT` for empty arrays, `INVALID_ADDRESS` if any address is invalid (pre-flight), `INVALID_CONFIG` for missing RPC/contract config, `INVALID_RESPONSE` for non-array or malformed batch responses
-
-### `getGuildOwnersBatch(params: GuildOwnersBatchParams)`
-
-Fetches owners for multiple guild IDs in a single JSON-RPC batch request.
-Preserves the input order of guild IDs.
-
-```typescript
-await client.contracts.getGuildOwnersBatch({
-  guildIds: ['guild_1', 'guild_2', '42'],
-  chainId: 8453, // optional chain override
-  contractAddress: '0x0000000000000000000000000000000000000000', // optional contract override
-  maxBatchSize: 100, // optional limit (default 100)
-  chunk: true, // automatically split if guildIds exceeds maxBatchSize
-});
-```
-
-- **Returns**: `Promise<BatchItemResult[]>` — ordered results, one per input guild ID.
-  Each result has `{ status: 'success', result: '<owner-address>' }` or
-  `{ status: 'error', error: '<reason>' }`.
-- **Requires**: same config as `getGuildOwner`
-- **Contract call**: single JSON-RPC batch of `eth_call` to `getGuildOwner(bytes32)`
-- **Guild ID encoding**: each guild ID in the array is encoded using the same strict three-mode rules as `getGuildOwner` (see above)
-- **Partial failures**: a failed guild is reported individually; other guilds are unaffected
-- **Errors**: throws `INVALID_INPUT` for empty arrays, `INVALID_INPUT` if any guild ID is invalid (pre-flight), `INVALID_CONFIG` for missing RPC/contract config, `INVALID_RESPONSE` for non-array or malformed batch responses
-
-### RPC Failover (`rpcUrls`)
-
-When multiple RPC endpoints are provided via `rpcUrls` (or `chains[chainId].rpcUrls`),
-the SDK automatically fails over across them on transient errors. No method signatures
-change — failover is transparent to existing code.
-
-```typescript
-const client = new GuildPassClient({
-  apiUrl: 'https://api.guildpass.xyz',
-  rpcUrls: [
-    'https://primary.rpc.example',
-    'https://fallback.rpc.example',
-    'https://emergency.rpc.example',
-  ],
-  contractAddress: '0x...',
-});
-
-// If primary.rpc.example returns a 503, the SDK silently retries
-// on fallback.rpc.example. All contract methods benefit automatically.
-const balance = await client.contracts.getMembershipTokenBalance({
-  walletAddress: '0x...',
-});
-```
-
-**What triggers failover**: Network errors (ECONNREFUSED, ETIMEDOUT), HTTP 429
-(rate-limited), and any 5xx server error. Contract-level errors (execution reverted,
-invalid parameters) are **not** retried on a different endpoint — they would fail on
-every node.
-
-**Interaction with retry**: Failover happens *inside* each retry attempt. When a URL
-gets a transient error, the SDK first retries the same URL (if `retry.maxRetries` is
-configured), then fails over to the next URL, where retry counters reset.
-
-Upper-bound latency with N URLs and retry enabled:
-
-```
-N × (1 + maxRetries) × (timeoutMs + maxDelayMs)
-```
-
-**Observability hook**: Use `hooks.onRpcFailover` to monitor endpoint health:
-
-```typescript
-const client = new GuildPassClient({
-  apiUrl: 'https://api.guildpass.xyz',
-  rpcUrls: ['https://rpc1.example', 'https://rpc2.example', 'https://rpc3.example'],
-  hooks: {
-    onRpcFailover: ({ chainId, failedUrl, nextUrl, error }) => {
-      // Emit metrics, log warnings, trigger alerts
-      logger.warn('RPC failover', { chainId, from: failedUrl, to: nextUrl });
-    },
-  },
-});
-```
-
-The hook fires each time the provider switches to a fallback URL. It does **not** fire
-when the last URL fails (no next URL to promote). Hook failures are silently caught —
-they never affect the failover flow.
-
-### Pluggable RPC providers (`contractProvider`)
-
-All contract reads go through the `ContractProvider` interface. By default the SDK builds a
-raw JSON-RPC provider from `rpcUrl`, but you can supply your own via
-`GuildPassClientConfig.contractProvider`, which **takes precedence over `rpcUrl`** (including
-per-chain `chains[].rpcUrl`):
-
-```typescript
-interface ContractProvider {
-  ethCall(request: { to: string; data: string }, options?: RequestOptions): Promise<unknown>;
-  batchEthCall(requests: EthCallRequest[], options?: RequestOptions): Promise<BatchItemResult[]>;
+export interface AccessDecision {
+  allowed: boolean;
+  reason?: string;
+  guildId: string;
+  account: string;
+  resource?: string;
+  action?: string;
+  metadata?: Record<string, unknown>;
 }
 ```
-
-Reuse an existing viem or ethers provider via the tree-shakeable adapter subpaths
-(viem/ethers are optional peer dependencies — never bundled unless you import an adapter):
-
-```typescript
-// viem
-import { createPublicClient, http } from 'viem';
-import { viemContractProvider } from '@guildpass/sdk/adapters/viem';
-
-const client = new GuildPassClient({
-  apiUrl: 'https://api.example.com',
-  contractAddress: '0x...',
-  contractProvider: viemContractProvider(createPublicClient({ transport: http(rpcUrl) })),
-});
-
-// ethers
-import { JsonRpcProvider } from 'ethers';
-import { ethersContractProvider } from '@guildpass/sdk/adapters/ethers';
-
-const client = new GuildPassClient({
-  apiUrl: 'https://api.example.com',
-  contractAddress: '0x...',
-  contractProvider: ethersContractProvider(new JsonRpcProvider(rpcUrl)),
-});
-```
-
-All contract methods behave identically regardless of provider, including error codes:
-provider-level failures throw `HTTP_ERROR`, undecodable results throw `INVALID_RESPONSE`,
-and missing configuration throws `INVALID_CONFIG`. The default `JsonRpcContractProvider`
-is also exported from the root for advanced use.
-
-### `batchEthCall(calls: BatchEthCallItem[], rpcUrl?: string, options?: RequestOptions & { maxBatchSize?: number, chunk?: boolean })`
-
-Low-level helper for sending multiple arbitrary `eth_call` requests in one
-JSON-RPC batch. Returns ordered per-item results. By default, it limits batches to 100 calls and throws an error if exceeded, unless `chunk: true` is passed.
-
-```typescript
-const results = await client.contracts.batchEthCall(
-  [
-    { to: '0xContractA', data: '0x70a08231...' },
-    { to: '0xContractB', data: '0xab4511dc...' },
-  ],
-  'https://rpc.example.com',
-  { maxBatchSize: 50, chunk: true }
-);
-```
-
-- **Returns**: `Promise<BatchItemResult[]>` — ordered results, one per input call
-- **Partial failures**: each call is individually resolved; errors do not affect sibling calls
-- **Input validation**: each `to` address is validated as an Ethereum address before the RPC request is built
-- **Errors**: throws `INVALID_INPUT` for empty/ invalid call descriptors, `INVALID_CONFIG` for missing `rpcUrl`, `INVALID_ADDRESS` for malformed `to` addresses, `HTTP_ERROR` for HTTP or RPC-level failures, `INVALID_RESPONSE` for non-array or structurally malformed batch responses
-- **Provider compatibility**: works with any JSON-RPC provider that supports [batch requests](https://www.jsonrpc.org/specification#batch)
-- **Custom providers**: when a `contractProvider` is configured it takes precedence and `rpcUrl` may be omitted; `INVALID_CONFIG` is only thrown when neither is available
 
 ---
 
-## Response Metadata
+## Pagination Helpers
 
-Pass `includeMeta: true` in the `RequestOptions` of any service method to receive an object `{ data, meta }` instead of just `data`.
+GuildPass provides standard cursor-based pagination utilities.
 
-```typescript
-const result = await client.guilds.getGuild(
-  { guildId: 'prime-guild' },
-  { includeMeta: true },
-);
-// result.data   → Guild
-// result.meta   → ResponseMetadata
+### `paginate`
+
+Asynchronously iterates over items across multiple pages:
+
+```ts
+import { paginate, type Page, type PageRequest } from "@guildpass/sdk";
+
+interface Member {
+  id: string;
+  account: string;
+}
+
+async function fetchMembersPage(req: PageRequest): Promise<Page<Member>> {
+  // Fetch a page from your API
+  return {
+    items: [{ id: "1", account: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7" }],
+    nextCursor: null,
+  };
+}
+
+// Iterate over each item asynchronously
+for await (const member of paginate(fetchMembersPage, { maxPages: 5 })) {
+  console.log("Member:", member.account);
+}
 ```
 
-### `ResponseMetadata`
+### `collectAll`
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `requestId` | `string \| undefined` | `X-Request-ID` response header. |
-| `correlationId` | `string \| undefined` | `X-Correlation-ID` response header. |
-| `traceId` | `string \| undefined` | `Traceparent` (W3C) response header. |
-| `status` | `number` | HTTP status code. |
-| `durationMs` | `number` | Round-trip duration in milliseconds. |
+Fetches all items across pages into a single array:
 
-On HTTP errors, `GuildPassError.requestMeta` carries the same metadata for correlation with backend logs.
+```ts
+import { collectAll } from "@guildpass/sdk";
+
+const allMembers = await collectAll(fetchMembersPage, { maxPages: 10 });
+console.log("Total fetched:", allMembers.length);
+```
 
 ---
 
 ## Error Handling
 
-Every error the SDK throws is an instance of `GuildPassError`, but you
-rarely want to catch that base class alone — a denied access check
-("the wallet is correctly blocked") looks nothing like a network
-outage ("the check itself never ran"), and string-matching `error.message`
-to tell them apart is fragile. Instead, catch one of four typed
-subclasses, exported from every entry point (`@guildpass/sdk`,
-`@guildpass/sdk/errors`) and used consistently across `access`,
-`membership`, `roles`, `guilds`, and `contracts`:
+### Error Hierarchy
 
-| Class | Thrown when | Carries `status`? |
-| :--- | :--- | :--- |
-| `GuildPassConfigError` | Local problem detected before any request: missing/invalid SDK config, bad call parameters, a misconfigured service instance. | No |
-| `GuildPassNetworkError` | The request never received a response: connection failures, timeouts, cancellations. | No |
-| `GuildPassApiError` | The server responded with a non-2xx status. | Yes |
-| `GuildPassResponseValidationError` | A response was received but couldn't be trusted: malformed JSON, failed shape validation, signature/consensus verification failure. | Sometimes |
+All SDK errors inherit from `GuildPassError` and expose a machine-readable `GuildPassErrorCode`.
 
-All four extend `GuildPassError`, so existing `instanceof GuildPassError`
-and `error.code` checks keep working unchanged:
+```text
+Error
+  └── GuildPassError
+        ├── ConfigurationError (CONFIGURATION_ERROR)
+        ├── ValidationFailedError (VALIDATION_ERROR)
+        ├── TransportError (TRANSPORT_ERROR)
+        │     └── NetworkError
+        ├── HttpError (HTTP_ERROR)
+        ├── TimeoutError (TIMEOUT)
+        ├── CancellationError (ABORTED)
+        └── MalformedResponseError (RESPONSE_ERROR)
+```
 
-```typescript
+### Error Handling Pattern
+
+```ts
 import {
-  GuildPassApiError,
-  GuildPassNetworkError,
-  GuildPassConfigError,
-} from '@guildpass/sdk';
+  GuildPassClient,
+  isGuildPassError,
+  HttpError,
+  NetworkError,
+  TimeoutError,
+  ConfigError,
+} from "@guildpass/sdk";
 
 try {
-  await client.access.checkAccess({ ... });
-} catch (error) {
-  if (error instanceof GuildPassApiError) {
-    // error.status is guaranteed to be set (e.g. 500, 429)
-  } else if (error instanceof GuildPassNetworkError) {
-    // the request never reached the server — safe to retry
-  } else if (error instanceof GuildPassConfigError) {
-    // fix the call site or client config, retrying won't help
+  const client = new GuildPassClient({
+    baseUrl: "https://api.testnet.guildpass.io",
+  });
+  const decision = await client.access.check({
+    guildId: "guild-xyz",
+    account: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7",
+  });
+} catch (error: unknown) {
+  if (error instanceof HttpError) {
+    console.error(`API Error HTTP ${error.status}: ${error.message}`);
+  } else if (error instanceof TimeoutError) {
+    console.error("Request timed out:", error.message);
+  } else if (error instanceof NetworkError) {
+    console.error("Network connection failed:", error.message);
+  } else if (error instanceof ConfigError) {
+    console.error("Invalid SDK configuration:", error.message);
+  } else if (isGuildPassError(error)) {
+    console.error(`GuildPass Error [${error.code}]: ${error.message}`);
+  } else {
+    console.error("Unexpected error:", error);
   }
 }
 ```
 
 ---
 
-## Response Validation
+## Security & Redaction
 
-By default, service methods trust that the API response matches the
-declared TypeScript return type. Since that's only a compile-time
-guarantee, a malformed or incompatible response from the API (or a
-misbehaving mock/proxy in front of it) would otherwise be returned to
-your code as-is.
-
-Set `validateResponses: true` in the client config to opt into runtime
-checks on responses for the core public types (`AccessCheckResult`,
-`Membership`, `GuildRole`, `Guild`, `GuildConfig`):
-
-```typescript
-const client = new GuildPassClient({
-  apiUrl: '...',
-  validateResponses: true,
-});
-```
-
-When enabled, a response that doesn't match the expected shape causes
-the SDK method to throw a `GuildPassResponseValidationError` with
-`code: GuildPassErrorCode.INVALID_RESPONSE`, instead of silently
-returning malformed data:
-
-```typescript
-try {
-  await client.access.checkAccess({ ... });
-} catch (error) {
-  if (error instanceof GuildPassResponseValidationError) {
-    // The API returned a response that doesn't match AccessCheckResult.
-  }
-}
-```
-
-This flag defaults to `false` to preserve existing behaviour for
-current consumers. The guards themselves (`isAccessCheckResult`,
-`isMembership`, `isGuildRoleArray`, `isGuild`, `isGuildConfig`) are
-also exported directly from the package if you want to validate
-responses yourself without enabling the flag:
-
-```typescript
-import { isGuild } from '@guildpass/sdk';
-
-if (!isGuild(someUnknownValue)) {
-  // handle the malformed payload
-}
-```
-
-The guards are hand-written, dependency-free type predicates — no
-schema validation library is used, so enabling this option has a
-negligible effect on bundle size.
-
-## Contract Testing
-
-The SDK maintains an API schema fixture to ensure request and response assumptions are valid. Contract tests (`tests/services.test.ts`) assert that SDK method parameters map to the correct API endpoint and match expected schema response structures.
-
-When the API contract changes, you must update the fixture (`tests/fixtures/api-contract.json`) to reflect the new structure:
-
-1. Locate the endpoint within `api-contract.json`.
-2. Update the `request.path` or `request.query` array if parameters change.
-3. Update the `response.success` object to match the new successful response.
-4. Update the `response.error` object if error formats change.
-5. Run `npm test` to verify your SDK methods conform to the new API schema.
-
-## Merkle-Proof Whitelist
-
-### validateWhitelistRequirement
-
-Validates a whitelist requirement by resolving the current root and verifying the proof.
+GuildPass SDK provides built-in utilities to sanitize secrets and generate diagnostic fingerprints:
 
 ```ts
-function validateWhitelistRequirement(
-  address: string,
-  proof: string[],
-  options: WhitelistValidationOptions
-): Promise<boolean>
-function buildTree(addresses: string[]): {
-  root: string;
-  getProof: (address: string) => string[];
-  tree: MerkleTree;
-}
-function publishRoot(root: string, version?: number): Promise<void>
-function rotateWhitelist(newRoot: string, version?: number): Promise<void>
+import { redactSecret, fingerprintSecret, REDACTED_DISPLAY_VALUE } from "@guildpass/sdk";
+
+const result = redactSecret("my-super-secret-api-key", { namespace: "api-key" });
+console.log(result.display);     // "[REDACTED]"
+console.log(result.fingerprint); // 16-character deterministic hex fingerprint
+console.log(result.namespace);   // "api-key"
 ```
-
-## EIP-712 (Typed-Data Signing)
-
-Generic `eth_signTypedData_v4` support — `encodeType` / `hashStruct` /
-`hashTypedData` implemented from scratch per the EIP-712 spec (no extra
-runtime dependency), reusing the SDK's existing secp256k1 `ecRecover` for
-verification (the same primitive `verifySiweSignature` uses). Values are
-signed by the caller's own wallet/library (e.g. viem's `signTypedData`,
-ethers' `signTypedData`, or a raw `eth_signTypedData_v4` RPC call) — this
-module only encodes/hashes/verifies, it never signs.
-
-### Generic primitives
-
-```ts
-function hashTypedData(typedData: EIP712TypedData): Uint8Array
-function hashDomain(domain: EIP712Domain): Uint8Array
-function hashStruct(primaryType: string, data: EIP712Message, types: EIP712Types): Uint8Array
-function encodeType(primaryType: string, types: EIP712Types): string
-function typeHash(primaryType: string, types: EIP712Types): Uint8Array
-
-function verifyTypedDataSignature(
-  domain: EIP712Domain,
-  types: EIP712Types,
-  primaryType: string,
-  message: EIP712Message,
-  signature: string,
-  expectedSigner: string,
-): EIP712VerifyResult
-```
-
-`verifyTypedDataSignature` never throws — failures are reported via
-`EIP712VerifyResult.success === false` with a `code` from
-`GuildPassErrorCode` (`EIP712_INVALID_SIGNATURE`, `EIP712_INVALID_TYPED_DATA`,
-`EIP712_SIGNER_MISMATCH`).
-
-### GuildRoleDelegation (reference schema)
-
-A concrete typed-data schema for delegating a guild role from one wallet to
-another, demonstrating the generic primitives above for a real GuildPass use
-case:
-
-```ts
-interface GuildRoleDelegation {
-  delegator: string; // address
-  delegate: string;  // address
-  guildId: string;   // bytes32
-  roleId: string;    // bytes32
-  expiry: bigint | number; // uint256, unix seconds
-  nonce: bigint | number;  // uint256
-}
-
-function buildGuildRoleDelegationTypedData(
-  domain: EIP712Domain,
-  delegation: GuildRoleDelegation,
-): EIP712TypedData
-
-function verifyGuildRoleDelegationSignature(
-  domain: EIP712Domain,
-  delegation: GuildRoleDelegation,
-  signature: string,
-  options?: { checkExpiry?: boolean }, // default true
-): EIP712VerifyResult
-
-function verifyGuildRoleDelegationWithReplayProtection(
-  domain: EIP712Domain,
-  delegation: GuildRoleDelegation,
-  signature: string,
-  nonceStore: NonceStore,
-  options?: { checkExpiry?: boolean },
-): Promise<EIP712VerifyResult>
-```
-
-`verifyGuildRoleDelegationWithReplayProtection` reuses the same `NonceStore`
-abstraction as SIWE's replay protection (`InMemoryNonceStore` or a
-shared/Redis-backed implementation), consuming a
-`guildId:roleId:delegator:nonce`-scoped key only after signature and expiry
-checks fully succeed — a failed verification never burns a nonce.
-
-> **Security note:** this module has not been through the same external
-> audit as `crypto/secp256k1.ts` (see
-> `docs/cryptographic-audit-secp256k1.md`, Issue #62). It reuses that
-> audited `ecRecover` for the actual signature recovery, and its
-> `hashTypedData` output is cross-checked byte-for-byte against `viem`'s
-> independent implementation in `tests/eip712/eip712.test.ts`, but the
-> EIP-712 encoding/hashing logic itself (`encodeType`, `hashStruct`, value
-> encoding for each Solidity type) is new and should get its own security
-> review before being relied on for anything high-value.
